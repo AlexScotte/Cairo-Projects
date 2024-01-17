@@ -11,6 +11,9 @@ fn main() {
     arrayClone();
     returnsValue();
     returnsTupple();
+    snapshots();
+    desnap();
+    usingReference();
 }
 
 
@@ -98,3 +101,65 @@ fn calculate_length(arr: Array<u128>) -> (Array<u128>, usize) {
 
     (arr, length)
 }
+
+fn snapshots() {
+    let mut arr1 = ArrayTrait::<u128>::new();
+    let first_snapshot = @arr1; // Take a snapshot of `arr1` at this point in time
+    arr1.append(1); // Mutate `arr1` by appending a value
+    let first_length = calculate_length_with_snapshot(
+        first_snapshot
+    ); // Calculate the length of the array when the snapshot was taken
+    //ANCHOR: function_call
+    let second_length = calculate_length_with_snapshot(@arr1); // Calculate the current length of the array
+    //ANCHOR_END: function_call
+    println!("The length of the array when the snapshot was taken is {}", first_length);
+    println!("The current length of the array is {}", second_length);
+}
+
+fn calculate_length_with_snapshot(array_snapshot: @Array<u128>
+) -> usize { // array_snapshot is a snapshot of an Array
+    array_snapshot.len()
+} // Here, array_snapshot goes out of scope and is dropped.
+// However, because it is only a view of what the original array `arr` contains, the original `arr` can still be used.
+
+
+#[derive(Copy, Drop)]
+struct Rectangle {
+    height: u64,
+    width: u64,
+}
+
+fn desnap() {
+    let rec = Rectangle { height: 3, width: 10 };
+    let area = calculate_area(@rec);
+    println!("Area: {}", area);
+}
+
+fn calculate_area(rec: @Rectangle) -> u64 {
+    // As rec is a snapshot to a Rectangle, its fields are also snapshots of the fields types.
+    // We need to transform the snapshots back into values using the desnap operator `*`.
+    // This is only possible if the type is copyable, which is the case for u64.
+    // Here, `*` is used for both multiplying the height and width and for desnapping the snapshots.
+    *rec.height * *rec.width
+}
+
+fn usingReference() {
+    let mut rec = Rectangle { height: 3, width: 10 };
+    flip(ref rec);
+    println!("height: {}, width: {}", rec.height, rec.width);
+}
+
+fn flip(ref rec: Rectangle) {
+    let temp = rec.height;
+    rec.height = rec.width;
+    rec.width = temp;
+}
+
+
+
+// RECAP
+// At any given time, a variable can only have one owner.
+// You can pass a variable by-value, by-snapshot, or by-reference to a function.
+// If you pass-by-value, ownership of the variable is transferred to the function.
+// If you want to keep ownership of the variable and know that your function won’t mutate it, you can pass it as a snapshot with @.
+// If you want to keep ownership of the variable and know that your function will mutate it, you can pass it as a mutable reference with ref.
